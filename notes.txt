@@ -157,6 +157,190 @@ Debugging Angular app:
     3. Use the chrome extension Augury (really cool)
 
 
+BINDING CUSTOM/OWN Properties
+    How do you bind a property of parent component to a child component. Example:
+        <app-server [server]="serverElement"></app-server>
+
+    Where serverElement is a property of the app component and server is of app-server component (child).
+    Simple, we need to Import Input from 'angular/core' and use this to indicate that it is a property that
+    will be assgined from outside.
+        import { Component, Input } from 'anuglar/core';
+
+        @Component({
+            selector: 'app-server',
+            template: './app.server.html'
+        })
+        export class Server {
+            @Input() server: {name: string, status: string}
+        }
+
+    By doing this way, we assign serverElement to server of app-server. 
+
+    ALIAS: use it as below
+        @Input('serverDetails') server: {name: string, status: string} //access with serverDetails in parent.
+
+
+BINDING CUSTOM/OWN Events
+    The idea here is simple. We have to manipulate some data in parent element based on some action performed in child 
+    component. How you can do is? You create a custom event in the child element that calls one of the function 
+    defined in the parent component.
+        <app-server (addServer)="onServerAdded($event)"></app-server>
+    
+    In the above, onServerAdded is a function that is defined in the AppComponent class. So the child looks like below
+    after it uses Output from 'angular/core' to infrom that is is a property that calls one of the properties of the parent,
+        import { Component, Output, EventEmitter } from 'anuglar/core';
+
+        @Component({
+            selector: 'app-server',
+            template: './app.server.html'
+        })
+        export class Server {
+            serverName = '';
+            status = '';
+            @Output() addServer = new EventEmitter<{name: string, status: string}>();
+
+            onAddedServer() {
+                this.addServer.emit({
+                    name: this.serverName,
+                    status: this.status
+                })
+            }
+        }
+
+    In the above, onAddedServer is an actual fuction called when user clicks something and then the event emitter sends
+    the new event upon which the parents function onServerAdded gets called.
+
+    If we observe closely, the above two methods define how our html and javascript works together. 
+    This is how(maybe cause am not sure) events and properties are coded at the basic level using C. AWESOOOOME.
+
+
+View Encapsulation
+    When you oberve the rendered HTML source, you can see that angular adds different attributes to each of the html
+    elements that are associated with particular CSS. 
+    The CSS defined in the css file of the component is applied to that component only but ideally CSS doesn't work like
+    that. You can manipulate this behaviour by using ViewEncpsulation
+        import { Component, ViewEncapsulation } from 'angular/core'
+        @Component({
+            selector: 'app-server-element',
+            templateUrl: './server-element.component.html',
+            styleUrls: ['./server-element.component.css'],
+            encapsulation: ViewEncapsulation.Emulated
+        })
+    
+    ViewEncapsulation has three values:
+        1. none : this will apply the css globally
+        2. emulated: default configuration, applies css of a component to that component itself
+        3. native: only with browsers that support shadow DOM
+
+
+Local Template References
+    What if i could geta reference of an HTML element and pass it around?
+        <input type="text" #serverInput >
+        <button (click)="addServer(serverInput)">Submit</button>
+
+        addServer(serverInput: HTMLInputElement) {
+            //do something with serverInput
+        }
+
+    Its the same as dynamic binding using ngModel but here you pass the input element itself.
+    Please note that the serverInput is of type HTMLInputElement.
+
+
+Access Template & DOM using @ViewChild
+    We can use this decorator to bind the property of a component to an ElementRef using the local template reference. 
+    ElementRef is a reference to the HTML element but not of type HTMLInputElement, it is a custom type defined
+    only in angular and not javascript. It must be imported from 'angular/core'.
+        <input type="text" #serverInput >
+        <button (click)="addServer(serverInput)">Submit</button>
+
+        import { Component, ViewChild, ElementRef } from 'angular/core'
+        @Component({
+            selector: 'app-server-element',
+            templateUrl: './server-element.component.html',
+            styleUrls: ['./server-element.component.css']
+        })
+        export class ServerElement {
+            @ViewChild('serverInput', { static: true }) serverInput: ElementRef;
+
+            addServer() {
+                console.log(serverInput.nativeElement.value); //use native method on ElementRef to access the HTML element
+            }
+        }
+
+@ViewChild() in Angular 8
+    In Angular 8, the @ViewChild() syntax which you'll see in the next lecture needs to be changed slightly:
+    Instead of:
+        @ViewChild('serverContentInput') serverContentInput: ElementRef;
+    use
+        @ViewChild('serverContentInput', {static: true}) serverContentInput: ElementRef;
+    The same change (add { static: true } as a second argument) needs to be applied to ALL usages of @ViewChild() 
+    (and also @ContentChild() which you'll learn about later) IF you plan on accessing the selected element inside of ngOnInit().
+    If you DON'T access the selected element in ngOnInit (but anywhere else in your component), set static: false instead!
+    This is a temporary adjustment which will NOT be required anymore once Angular 9 is released!
+
+
+ng-content directive
+    Imagine situation where you cannnot bing the properties of parent element to the child element using the custom binding
+    methods, for example when you need to bind a large number of data. 
+    At times like that we can write the childeren HTML to be rendered within the declaration of the component itself, Ex:
+        <app-server-element *ngFor="let serverElement of serverElements">
+            <p>
+                <strong *ngIf="serverElement.type === 'server'" style="color: red">{{ serverElement.content }}</strong>
+                <em *ngIf="serverElement.type === 'blueprint'">{{ serverElement.content }}</em>
+            </p>
+        </app-server-element>
+
+    The app-server.component.html looks like this,
+        <div class="main">
+            <div class="row">
+                <ng-content></ng-content>
+            </div>
+        </div>
+
+    The HTML code defeined between app-server-element gets rendered where <ng-content></ng-content> is present.
+
+
+LifeCycle methods
+    1. ngOnChanges : this is called at the starting and again whenever the property bound by the @Input decorator
+        changes.
+    2. ngOnInit: only when component is initialized (doesn't mean that it was added to DOM, just basic initialization
+        is done). It is run after the constructor.
+    3. ngDoCheck: called change detection run, even property change in component property or html dom change.
+    4. ngAfterContentInit: called after content (ng-content) has been projected into the View
+    5. ngAfterContentChecked: called everytime the projected content has been checked
+    6. ngAfterViewInit: called after component's view and child views has been initialized
+    7. ngAfterViewChecked: called every time the view and child views have been checked
+    8. ngOnDestroy: called once component is about to be destroyed
+
+@ContentChild() in Angular 8
+    In Angular 8, the @ContentChild() syntax which you'll see in the next lecture needs to be changed slightly:
+    Instead of:
+        @ContentChild('contentParagraph') paragraph: ElementRef;
+    use
+        @ContentChild('contentParagraph', {static: true}) paragraph: ElementRef;
+    The same change (add { static: true } as a second argument) needs to be applied to ALL usages of @ContentChild() if you 
+    use the selected element inside of ngOnInit (as we do it in the lectures).
+    If you DON'T use the selected element in ngOnInit, set static: false instead.
+
+When to use @ContentChild()
+    How to access the content that is renedered in parent component using ng-content?
+        <app-server-element *ngFor="let serverElement of serverElements">
+            <p #contentChildFromParent>
+                <strong *ngIf="serverElement.type === 'server'" style="color: red">{{ serverElement.content }}</strong>
+                <em *ngIf="serverElement.type === 'blueprint'">{{ serverElement.content }}</em>
+            </p>
+        </app-server-element>
+
+    The app-server.component.html looks like this,
+        <div class="main">
+            <div class="row">
+                <ng-content></ng-content>
+            </div>
+        </div>
+
+    Usage in component code: 
+        @ContentChild('contentChildFromParent') contentChildFromParent: ElementRef;
+
 
 
 
@@ -203,3 +387,10 @@ Typescript
 
     3. Indicate variable as an array of certain type
         public recipes: Recipe[] = [];
+
+    4. Define property as an object
+        element: {type: string, name: string};
+
+    5. Define the return type of a class
+        addServer = new EventEmitter<{name: string, status: string}>();
+
