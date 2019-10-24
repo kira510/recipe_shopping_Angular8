@@ -137,9 +137,21 @@ Directives
         3. ngClass: dynmaically add/remove css class
         5. ngFor
 
+ngClass and ngStyle example
+    <li
+        class="list-group-item"
+        [ngClass]="{ odd: odd % 2 !== 0}"
+        [ngStyle]="{background: odd % 2 !== 0 ? 'yellow' : 'transparent'}"
+        *ngFor="let odd of oddNumbers">
+        {{ odd }}
+    </li>
+
 Strutural directives vs Attribute directives
     Structural: these are the ones used with * in the front. Ex: ngFor, ngIf
+        They affect the entire DOM, they destroy the element if the condition is not true hence they
+        are called structural.
     Attribute: These look like html attributes itself. Ex: ngStyle, ngClass
+        They do not destroy the element instead affect the way its rendered.
         
 ngFor using index
     Ex: *ngFor="let server in servers; let i=index"
@@ -340,6 +352,133 @@ When to use @ContentChild()
 
     Usage in component code: 
         @ContentChild('contentChildFromParent') contentChildFromParent: ElementRef;
+
+
+CREATING Directives
+    Three methods:
+        1. Basic
+        2. Better than basic
+        3. Structuraal directive
+
+
+Basic Directives
+    Below is an example of basic directive, you must not use this more often cause this can create problems in advance 
+    cases like using a Service worker where a DOM moght not be present. Note the first argument of constructor is of type
+    ElementRef which gets the element itself (declare it as private so its accessible throughout the class).
+
+        import { Directive, ElementRef, OnInit } from '@angular/core';
+
+        @Directive({
+            selector: '[appBasicHighlight]'
+        })
+        export class BasicHighlightDirective implements OnInit {
+            constructor(private elementRef: ElementRef) {
+            }
+
+            ngOnInit() {
+                this.elementRef.nativeElement.style.backgroundColor = 'green';
+            }
+        }
+
+    Usage in HTML page,
+        <p appBasicHighlight>Style me colorusing basic diective highlighter</p>
+
+
+Better than Basic:
+    1. constructor receives two arguments: elementRef and Renderer2
+    2. We can assign the color of the paragraph using the the renderer in ngOnInit (see the commented line)
+    3. We can add some dynamic css by listening to events on the element, by using Hostlistener.
+        HostListener takes the event as argument and calls the function defined next to it when the event occurs.
+        You can see that i add and remove the background colour using the renderer here (both commented lines).
+    4. Better way to do it is by using HostBinding:
+        Use host binding to bind an actual property of the element, for example style.background . Angular now binds the
+        background property (css) to a variable.
+        Now toggle this value upon mouseenter and mouseleave.
+    5. You can assign this value dynamically using the custom property binding. 
+
+            import { Directive, OnInit, ElementRef, Renderer2, HostListener, HostBinding, Input } from '@angular/core';
+
+            @Directive({
+                selector: "[appBetterHighlight]"
+            })
+            export class BetterHighlightDirective implements OnInit {
+                @Input() defaultColor: string = 'transparent';
+                @Input('appBetterHighlight') highlightColor: string = 'blue';
+                @HostBinding('style.backgroundColor') backgroundColor: string;
+
+                constructor( private eleRef: ElementRef, private renderer: Renderer2) {}
+
+                ngOnInit() {
+                    this.backgroundColor = this.defaultColor;
+                // this.renderer.setStyle(this.eleRef.nativeElement, 'background-color', 'blue');
+                }
+
+                @HostListener('mouseenter') mouseover(eventData: Event) {
+                    //this.renderer.setStyle(this.eleRef.nativeElement, 'background-color', 'blue');
+                    this.backgroundColor = this.highlightColor;
+                }
+
+                @HostListener('mouseleave') mouseleft(eventData: Event) {
+                    //this.renderer.setStyle(this.eleRef.nativeElement, 'background-color', 'transparent');
+                    this.backgroundColor = this.defaultColor;
+                }
+            }
+
+    HTML usage:
+            <p [appBetterHighlight]="'pink'" defaultColor="green">Style me using better diective highlighter </p>
+        You can observe above, [defaultColor]="'green'" ==> defaultColor="green".
+
+
+Custom STRUCTURAL Directives
+    Constructor takes two different directive here, mainly a templateRef and a ViewContainerRef.
+    What happens when you a structural directive?
+    A simple code like below, get transfromed behind the scenes into a ng-template bound element.
+        <div *ngIf="...">...</div>
+    becomes:
+        <ng-template [ngIf]="...">
+            <div>...<div>
+        </ng-template>
+
+    With that in mind, we must add a setter that has the same name as the selector to receive a boolean and do something with
+    that boolean condition.
+        import { Directive, Input, TemplateRef, ViewContainerRef } from "@angular/core";
+
+        @Directive({
+            selector: '[appUnless]'
+        })
+        export class UnlessDirective {
+            @Input() set appUnless(condition: boolean) {
+                if (!condition) {
+                    this.vcRef.createEmbeddedView(this.templateRef);
+                } else {
+                    this.vcRef.clear();
+                }
+            }
+
+            constructor(private templateRef: TemplateRef<any>, private vcRef: ViewContainerRef) {}
+        }
+    
+    HTML Usage:
+        <div *appUnless="onlyOdd">
+            <li
+              class="list-group-item"
+              [ngClass]="{ odd: odd % 2 !== 0}"
+              [ngStyle]="{background: odd % 2 !== 0 ? 'yellow' : 'transparent'}"
+              *ngFor="let odd of oddNumbers">
+              {{ odd }}
+            </li>
+        </div>
+
+
+ngSwitch
+    Note the syntax od usage of ngSwitch and the cases.
+        <div [ngSwitch]="value">
+            <p *ngSwitchCase="5">5</p>
+            <p *ngSwitchCase="10">10</p>
+            <p *ngSwitchDefault>Default</p>
+        </div>
+
+
 
 
 
