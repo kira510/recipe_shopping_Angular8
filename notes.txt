@@ -478,6 +478,74 @@ ngSwitch
             <p *ngSwitchDefault>Default</p>
         </div>
 
+Services and Dependency Injection
+    Services are normal classes that can be used to manipulate date data. This way we can write a leaner and
+    cleaner code.
+    For example: It we have a functionality where we list some number of users as active and inactive. 
+    The users are defined in the main app component and are manipulated to active and inactive components.
+    The users are passed as inputs to the active and inactive components, and recieves an output event emitter.
+
+    We can now use a service class to manage this and remove all the inpput and ouput methods.
+            import { Injectable } from "@angular/core";
+                import { CounterService } from "./counter.service";
+
+                @Injectable()
+                export class UsersService {
+                activeUsers = ['Max', 'Anna'];
+                inactiveUsers = ['Chris', 'Manu'];
+
+                constructor(private counterService: CounterService) {}
+
+                addToInactive(id: number) {
+                    this.inactiveUsers.push(this.activeUsers[id]);
+                    this.activeUsers.splice(id, 1);
+                    this.counterService.incrementToInactive();
+                }
+
+                addToActive(id: number) {
+                    this.activeUsers.push(this.inactiveUsers[id]);
+                    this.inactiveUsers.splice(id, 1);
+                    this.counterService.incrementToActive();
+                }
+            }
+
+    Injecting a service to a component
+        Add as provider in the class and then add it in the constructor as a private varaible.
+        Why add a private vaiable in constructor?
+        This will create am instance of the service.
+
+            @Component({
+                selector: 'app-inactive-users',
+                templateUrl: './inactive-users.component.html',
+                styleUrls: ['./inactive-users.component.css'],
+                provider: [UsersService]
+            })
+            export class InactiveUsersComponent implements OnInit {
+                users: string[];
+
+                constructor(private usersService: UsersService) {}
+
+                ngOnInit(): void {
+                    this.users = this.usersService.inactiveUsers;
+                }
+
+                onSetToActive(id: number) {
+                    this.usersService.addToActive(id);
+                }
+            }
+
+    
+Hierarchial Services:
+    1. You declare a service in app.component and all the child component will receive this instance but dont add as provider
+        in child components unless you want a new instance there.
+    2. Make sure you add in constructor in every child component.
+    3. Add in providers of app.module.ts to have the service instance available globally.
+
+Cross component services:
+    Inject a service and also use an event emitter. This eventemitter can be used to emit events in one components and
+    subscribe to them in another.
+
+
 
 
 
@@ -532,4 +600,9 @@ Typescript
 
     5. Define the return type of a class
         addServer = new EventEmitter<{name: string, status: string}>();
+
+    6. Return type of a function in class
+        ngOnInit () : void {
+            ...
+        }
 
